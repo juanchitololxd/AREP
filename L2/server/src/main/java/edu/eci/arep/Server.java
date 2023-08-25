@@ -5,103 +5,136 @@ import edu.eci.arep.persistence.file.FileManageTarget;
 import edu.eci.arep.persistence.file.IFileManage;
 import edu.eci.arep.services.MovieService;
 
-import javax.imageio.ImageIO;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Server {
     public static void main(String[] args) throws IOException {
         final int PORT = 35000;
 
-        Map<String, String> contentTypes = new HashMap<>();
-        contentTypes.put("html", "text/html");
-        contentTypes.put("jpg", "image/jpg");
-        contentTypes.put("png", "image/png");
         ServerSocket serverSocket = new ServerSocket(PORT);
-        IFileManage fileManager= new FileManageTarget();
         System.out.println("Servidor escuchando en el puerto " + PORT);
 
         while (true) {
             Socket socket = serverSocket.accept();
             Thread t = new Thread(() -> {
                 try {
+                    MovieService movieService = new MovieService(socket, PersistenceManage.getMovieDAO());
                     System.out.println("Cliente conectado desde: " + socket.getInetAddress());
                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                    OutputStream out2 = socket.getOutputStream();
-                    String name, sContent, extension;
+                    OutputStream out = socket.getOutputStream();
+                    List<byte[]> rta;
+
                     String inputLine = in.readLine();
                     if (inputLine == null) throw new IOException();
-                    MovieService movieService = new MovieService(socket, PersistenceManage.getMovieDAO());
-                    if (inputLine.contains("TEST")) out.println(inputLine);
+                    String url =inputLine.split(" ")[1];
+                    if (url.equals("/") ) throw new IOException();
 
-                    else if (inputLine.contains("/movies")) {
-                        name = inputLine.split("=")[1].split(" ")[0].strip();
-                        out.println(respGetOK(movieService.getMovie(name), "application/json"));
-                    }
-                    else if (inputLine.contains(".") && inputLine.contains("GET /")){
-                        try {
-                            System.out.println(inputLine);
-                            name = inputLine.split(" ")[1];
-                            name = name.replace("/", "");
-                            extension = name.split("\\.")[1];
-
-                            if (extension.equals("jpg")) {
-                                byte[] bytes = fileManager.writeImage(name);
-                                out2.write("HTTP/1.1 200 OK\r\n".getBytes());
-                                out2.write("Content-Type: image/jpg\r\n\r\n".getBytes());
-                                out2.write(bytes);
-                                out2.flush();
-                                out2.close();
-                            }
-                            else {
-                                sContent = fileManager.getFile(name);
-                                out.println(respGetOK(sContent, contentTypes.get(extension)));
-                            }
-
-                        }catch (IOException e){
-                            // TODO retornar 404
-                            out.println("HTTP/1.1 404 NOTFOUND \r\n");
-                        }
-
-                    }
-                    else {
-                        out.println(inputLine);
-                    }
-                    in.close();
+                    rta = processGetURL(url, movieService);
+                    writeData(rta, out);
                     out.close();
                     socket.close();
                 } catch (IOException e) {
                     System.out.println("error" + e.getMessage());
                 }
 
-                System.out.printf("%s sale", Thread.currentThread().getName());
+
+                System.out.printf("%s sale\n", Thread.currentThread().getName());
             });
             t.start();
         }
     }
 
-    public static String respGetOK(String jContent, String contentType) {
-        return "HTTP/1.1 200 OK \r\n" +
-                "Access-Control-Allow-Origin: * \r\n" +
-                "Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE \r\n" +
-                "Access-Control-Allow-Headers: Content-Type, Authorization \r\n" +
-                "Content-Type: " + contentType + "\r\n\r\n" +
-                jContent;
+    private static List<byte[]> getHeaders(String contentType, int result, String answer) {
+        List<byte[]> headers = new ArrayList<>();
+        headers.add(String.format("HTTP/1.1 %d %s", result, answer).getBytes());
+        headers.add("Access-Control-Allow-Origin: * ".getBytes());
+        headers.add("Access-Control-Allow-Methods: * ".getBytes());
+        headers.add("Access-Control-Allow-Headers: Content-Type, Authorization ".getBytes());
+        headers.add(String.format("Content-Type: %s", contentType).getBytes());
+        return headers;
     }
 
-    public static void getPlainFile(String fileName, String ext){
+
+    private static List<byte[]> processGetURL(String inputLine, MovieService movieService){
+        String name, extension, replaceExt;
+        IFileManage fileManager = new FileManageTarget();
+        List<byte[]> allContent = new ArrayList<>();
+
         try {
-            URI uri = new URI("target/classes/public" + fileName + "." + ext);
-        } catch (URISyntaxException e) {
-        }
+            if (inputLine.contains("TEST")) allContent.add(inputLine.getBytes());
 
+            else if (inputLine.contains("/movies")) {
+                name = inputLine.split("=")[1].strip();
+                allContent = getHeaders("application/json", 200, "OK");
+                allContent.add(movieService.getMovie(name).getBytes());
+            }
+            else if (inputLine.contains(".") && isImageExt(inputLine)){
+                name = inputLine.replace("/", "");
+                extension = name.split("\\.")[1];
+
+                allContent = getHeaders(String.format("image/%s", extension), 200, "OK");
+                allContent.add(fileManager.writeImage(name));
+            }
+            else if (inputLine.contains(".") && isPlainExt(inputLine)){
+                name = inputLine.replace("/", "");
+                extension = name.split("\\.")[1];
+                replaceExt = extension;
+                if (replaceExt.equals("txt")) replaceExt = "plain";
+                allContent = getHeaders(String.format("text/%s", replaceExt), 200, "OK");
+                allContent.add(fileManager.getFile(name).getBytes());
+            }
+            else {
+                allContent.add(inputLine.getBytes());
+            }
+        }catch (Exception e){
+            System.out.println("fallo " + e.getMessage());
+            allContent = getHeaders("text/plain", 404, "NOTFOUND");
+        }
+        return allContent;
 
     }
+
+    private static boolean isImageExt(String fileName) {
+        String extension = fileName.split("\\.")[1];
+        List<String> extensions = new ArrayList<>();
+        extensions.add("png");
+        extensions.add("jpg");
+        extensions.add("png");
+        return extensions.contains(extension);
+    }
+
+    private static boolean isPlainExt(String fileName) {
+        String extension = fileName.split("\\.")[1];
+        List<String> extensions = new ArrayList<>();
+        extensions.add("txt");
+        extensions.add("css");
+        extensions.add("js");
+        extensions.add("html");
+        return extensions.contains(extension);
+    }
+
+    private static void writeData(List<byte[]> data, OutputStream out){
+        try {
+            for (int i = 0; i < data.size(); i++) {
+                if (i == data.size() -1) {
+                    out.write("\r\n".getBytes());
+                    out.write(data.get(i));
+                }else {
+                    out.write(data.get(i));
+                    out.write("\r\n".getBytes());
+                }
+
+
+            }
+            //out.flush();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
 }
