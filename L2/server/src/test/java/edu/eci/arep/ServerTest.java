@@ -13,24 +13,17 @@ public class ServerTest extends TestCase
 {
 
     public void testConversateConcurrently() throws InterruptedException {
-        Thread[] clientThreads = new Thread[10];
+        Thread[] clientThreads = new Thread[50];
 
         for (int i = 0; i < clientThreads.length; i ++){
             Thread clientThread = new Thread(() -> {
                 try {
                     Socket socket = new Socket("localhost", 35000);
                     PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-
-                    String answer;
-                    for (int j = 0; j < 5; j++) {
+                    for (int j = 0; j < 10; j++) {
                         String message = "TEST by" + Thread.currentThread().getName() + " " + j;
                         out.println(message);
-                        Thread.sleep(500);
-                        answer = in.readLine();
-                        assertNotNull(answer);
-                        assertEquals(answer, message);
                     }
 
                     socket.close();

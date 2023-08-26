@@ -31,10 +31,11 @@ public class Server {
                     String inputLine = in.readLine();
                     if (inputLine == null) throw new IOException();
                     String url =inputLine.split(" ")[1];
-                    if (url.equals("/") ) throw new IOException();
 
-                    rta = processGetURL(url, movieService);
-                    writeData(rta, out);
+                    if (!url.equals("/") ) {
+                        rta = processGetURL(url, movieService);
+                        writeData(rta, out);
+                    }
                     out.close();
                     socket.close();
                 } catch (IOException e) {

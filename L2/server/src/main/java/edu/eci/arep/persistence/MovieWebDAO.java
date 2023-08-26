@@ -30,7 +30,7 @@ public class MovieWebDAO implements IMovieDAO {
     }
 
     private String loadMovieFromURL(String title) throws MovieException {
-        System.out.println("Entra load movie");
+        System.out.println("busca movie en la web");
         StringBuilder response = new StringBuilder();
         try {
             String URL = String.format("https://www.omdbapi.com/?apikey=%s&t=%s", API_KEY, title.replace(" ", "+"));
@@ -56,7 +56,6 @@ public class MovieWebDAO implements IMovieDAO {
         } catch (Exception ex) {
             throw new MovieException(title);
         }
-        System.out.println(response.toString());
 
         return response.toString();
     }
