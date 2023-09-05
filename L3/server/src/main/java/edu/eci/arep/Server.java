@@ -47,15 +47,15 @@ public class Server {
                     String method = inputLine.split(" ")[0];
 
                     String sParams = aux.length > 1 ? aux[1] : null;
-                    System.out.println(sParams);
-                    System.out.println(url);
-                    System.out.println(method);
 
                     if (sparkClone.hasService(method, url)) {
                         rta = getHeaders(getContentType(in, inputLine.split(" ")[1]), 200, "OK");
                         rta.add(sparkClone.execute(method, url, extractParams(sParams)));
-                        writeData(rta, out);
+                    }else {
+                        rta = getHeaders("text/plain", 404, "Not Found");
+                        rta.add("Escriba bien :)".getBytes());
                     }
+                    writeData(rta, out);
                     out.close();
                     socket.close();
                 } catch (Exception e) {
@@ -69,6 +69,11 @@ public class Server {
         }
     }
 
+    /**
+     * Extract params of URL
+     * @param sParams URL like /somthing?param1=value
+     * @return Array with value of each param y the same order
+     */
     private static String[] extractParams(String sParams) {
         String[] params = {};
         if (sParams != null) {
@@ -82,6 +87,11 @@ public class Server {
         return params;
     }
 
+    /**
+     * Verify if client wants a specific content-type, if true return that content-type, else return a suggested content-type
+     * @param inputLine URL like/somthing?param1=value (if it has params)
+
+     */
     private static String getContentType(BufferedReader in, String inputLine) throws IOException {
         String line, contentType="text/plain";
 
@@ -149,6 +159,10 @@ public class Server {
         return extensions.contains(extension);
     }
 
+
+    /**
+     * Write data to the client using out channel. These data must have the headers
+     */
     private static void writeData(List<byte[]> data, OutputStream out){
         try {
             for (int i = 0; i < data.size(); i++) {
@@ -159,14 +173,9 @@ public class Server {
                     out.write(data.get(i));
                     out.write("\r\n".getBytes());
                 }
-
-
             }
-            //out.flush();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-
-
 }

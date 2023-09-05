@@ -10,9 +10,9 @@ public class SparkClone {
 
     /***
      * register the service
-     * @param method
-     * @param route
-     * @param consumer
+     * @param method GET, POST
+     * @param route endpoint route
+     * @param consumer function to excute
      */
     public void addService(String method, String route, ISparkService consumer){
         if (method.equals("GET")) get_services.put(route, consumer);
