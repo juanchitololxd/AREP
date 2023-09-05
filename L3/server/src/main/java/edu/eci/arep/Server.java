@@ -48,7 +48,6 @@ public class Server {
                     String method = inputLine.split(" ")[0];
 
                     String sParams = aux.length > 1 ? aux[1] : null;
-
                     if (sparkClone.hasService(method, url)) {
                         rta = getHeaders(getContentType(in, inputLine.split(" ")[1]), 200, "OK");
                         rta.add(sparkClone.execute(method, url, extractParams(sParams)));
