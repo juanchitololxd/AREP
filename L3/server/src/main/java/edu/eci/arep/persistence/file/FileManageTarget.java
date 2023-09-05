@@ -7,11 +7,22 @@ import java.util.Scanner;
 
 public class FileManageTarget implements  IFileManage{
 
+    private String pathBase;
+    public FileManageTarget(String pathBase){
+        this.pathBase = pathBase;
+    }
+
+    public void setPathBase(String pathBase){
+        this.pathBase = pathBase;
+    }
+
     @Override
     public String getFile(String fileName)  throws IOException{
+
         StringBuilder content = new StringBuilder();
         System.out.println(fileName);
-        InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream("public/" + fileName);
+        InputStream inputStream = Thread.currentThread().getContextClassLoader().
+                getResourceAsStream(String.format("%s/%s", pathBase, fileName));
         if (inputStream == null) throw new IOException();
         Scanner scanner = new Scanner(inputStream, "UTF-8");
 
@@ -24,6 +35,7 @@ public class FileManageTarget implements  IFileManage{
 
 
     public byte[] writeImage(String fileName) throws IOException {
-        return Objects.requireNonNull(Thread.currentThread().getContextClassLoader().getResourceAsStream("public/img/" + fileName)).readAllBytes();
+        return Objects.requireNonNull(Thread.currentThread().getContextClassLoader()
+                .getResourceAsStream(String.format("%s/%s", pathBase, fileName))).readAllBytes();
     }
 }

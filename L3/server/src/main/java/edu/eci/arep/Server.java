@@ -20,25 +20,26 @@ public class Server {
         final int PORT = 35000;
 
         ServerSocket serverSocket = new ServerSocket(PORT);
-        IFileManage fileManager = new FileManageTarget();
         MovieService movieService = new MovieService(PersistenceManage.getMovieDAO());
 
         sparkClone.addService("GET", "/movies", (arg) -> movieService.getMovie(arg[0]).getBytes());
         sparkClone.addService("POST", "/posting", (arg) -> "POSTEADO".getBytes());
         sparkClone.addService("GET", "/hello", (arg) -> "ejecutado".getBytes());
-        sparkClone.addService("GET", "/files", (arg) -> fileManager.getFile(arg[0]).getBytes());
-        sparkClone.addService("GET", "/images", (arg) -> fileManager.writeImage(arg[0]));
+        sparkClone.addService("GET", "/files", (arg) -> loadFile(arg, "FILE"));
+        sparkClone.addService("GET", "/images", (arg) -> loadFile(arg, "IMG"));
 
         System.out.println("Servidor escuchando en el puerto " + PORT);
 
         while (true) {
             Socket socket = serverSocket.accept();
             Thread t = new Thread(() -> {
+                OutputStream out=null;
+                List<byte[]> rta;
                 try {
                     System.out.println("Cliente conectado desde: " + socket.getInetAddress());
                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    OutputStream out = socket.getOutputStream();
-                    List<byte[]> rta;
+                    out = socket.getOutputStream();
+
 
                     String inputLine = in.readLine();
                     if (inputLine == null) throw new IOException();
@@ -51,24 +52,41 @@ public class Server {
                     if (sparkClone.hasService(method, url)) {
                         rta = getHeaders(getContentType(in, inputLine.split(" ")[1]), 200, "OK");
                         rta.add(sparkClone.execute(method, url, extractParams(sParams)));
-                    }else {
-                        rta = getHeaders("text/plain", 404, "Not Found");
-                        rta.add("Escriba bien :)".getBytes());
-                    }
-                    writeData(rta, out);
-                    out.close();
-                    socket.close();
-                } catch (Exception e) {
-                    System.out.println("error" + e.getMessage());
+                    }else throw  new Exception();
+
+                }catch (IndexOutOfBoundsException ex){
+                    rta = getHeaders("text/plain", 400, "Bad Request");
+                    rta.add("Faltan parametros en su peticion".getBytes());
+                }
+                catch (Exception e) {
+                    System.out.println("error " + e.getMessage());
+                    rta = getHeaders("text/plain", 404, "Not Found");
+                    rta.add("Error no controlado. Escriba bien :)".getBytes());
                 }
 
+                try {
+                    writeData(rta, out);
+                    if (out != null) out.close();
+                    if (!socket.isClosed()) socket.close();
+                    System.out.printf("%s sale con todo cerrado\n", Thread.currentThread().getName());
+                } catch (IOException ignored) {}
 
-                System.out.printf("%s sale\n", Thread.currentThread().getName());
+
+
             });
             t.start();
         }
     }
 
+    public static byte[] loadFile(String[] args, String tipo) throws  Exception{
+        String pathBase = args.length == 2 ? args[1] : tipo.equals("FILE") ? "public": "public/img";
+        IFileManage fileManager = new FileManageTarget(pathBase);
+        byte[] rta;
+        if (tipo.equals("FILE")) rta = fileManager.getFile(args[0]).getBytes();
+        else rta = fileManager.writeImage(args[0]);
+        return rta;
+
+    }
     /**
      * Extract params of URL
      * @param sParams URL like /somthing?param1=value
