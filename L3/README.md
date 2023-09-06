@@ -6,7 +6,7 @@ Implementation about a clon of sparkjava with specific changes.
 
 This project has the next components or layers:
 
-`Server.java` Starts the server and creates threads for each request, then it waits the information of Service Layer, which uses the persistence layer for obtain: The movie's data and the files of web page.
+`AppConsumer.java` Starts a sparkjava object, then it generates endpoints into sparkjava object, and finally run the server
 
 In general is the same architecture than before, but now we have implemented a new package: spark. Here there is a class and an interface that works both for clone the funcionality of sparkjava. This class is instancied and used in Server class.
 
