@@ -140,7 +140,6 @@ public class SparkClone {
      */
     private static String getContentType(BufferedReader in, String inputLine) throws IOException {
         String line, contentType="text/plain";
-
         while ((line = in.readLine()) != null){
             if (line.contains("Accept")){
                 if (line.contains(",")) {

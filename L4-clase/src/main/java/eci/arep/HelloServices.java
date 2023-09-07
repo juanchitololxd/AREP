@@ -10,4 +10,9 @@ public class HelloServices {
         return " hola " + arg;
     }
 
+    @GetMapping("/movie")
+    public static String getMovie(String arg){
+        return movieService.getMOvie("").getBytes();
+    }
+
 }
