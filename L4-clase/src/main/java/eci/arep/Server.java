@@ -30,14 +30,10 @@ public class Server {
                     if (inputLine == null) throw new IOException();
                     String[] aux = getDataFromInput(in);
                     String method = aux[0], contentType = aux[3], endpoint = aux[1], params = aux[2];
-                    getHeaders(contentType, 200, "OK");
-                    ComponentLoader.ejecutar(endpoint, params);
-                    String url =inputLine.split(" ")[1];
 
-                    if (!url.equals("/") ) {
-                        rta = processGetURL(url, movieService);
-                        writeData(rta, out);
-                    }
+                    rta = getHeaders(contentType, 200, "OK");
+                    rta.add(ComponentLoader.ejecutar(endpoint, params));
+                    writeData(rta, out);
                     out.close();
                     socket.close();
                 } catch (Exception e) {
