@@ -1,74 +1,89 @@
 package eci.arep.spring;
 
-import eci.arep.ComponentLoader;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Spring {
 
-    public static void main(String[] args) throws Exception {
+    private static final ComponentLoader getLoader = new ComponentLoader();
+
+    public static void start() throws Exception {
         cargarClases();
         final int PORT = 35000;
 
         ServerSocket serverSocket = new ServerSocket(PORT);
         System.out.println("Servidor escuchando en el puerto " + PORT);
-
+        List<byte[]> rta;
         while (true) {
             Socket socket = serverSocket.accept();
+            OutputStream out = socket.getOutputStream();
             try {
                 System.out.println("Cliente conectado desde: " + socket.getInetAddress());
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                OutputStream out = socket.getOutputStream();
 
-                List<byte[]> rta;
+
                 String[] aux = getDataFromInput(in);
-                String method = aux[0], contentType = aux[3], endpoint = aux[1], params = aux[2];
+                String method = aux[0], contentType = aux[3], endpoint = aux[1];
+                Map<String, String> params = getQueryParams(aux[2]);
 
                 rta = getHeaders(contentType, 200, "OK");
-                rta.add(ComponentLoader.ejecutar(endpoint, params));
+                if (method.equals("GET")) rta.add(getLoader.ejecutar(endpoint, params));
                 writeData(rta, out);
                 out.close();
                 socket.close();
             } catch (Exception e) {
                 System.out.println("error " + e.getMessage());
+                e.printStackTrace();
+                rta = getHeaders("application/json", 400, "ERROR");
+                rta.add("{\"Error\": \"error inesperado\"}".getBytes());
+                writeData(rta, out);
+
             }
 
             System.out.printf("%s sale\n", Thread.currentThread().getName());
+        }
+    }
 
+    private static Map<String, String> getQueryParams(String queryString) {
+        Map<String, String> queryParams = new HashMap<>();
+        if (queryString != null){
+            String[] params = queryString.split("&");
+
+            for (String param : params) {
+                String[] keyValue = param.split("=");
+
+                if (keyValue.length == 2) {
+                    String key = keyValue[0];
+                    String value = keyValue[1];
+                    queryParams.put(key, value);
+                }
+            }
         }
 
+        return queryParams;
     }
 
 
     private static String[] getDataFromInput(BufferedReader in) throws IOException {
-        String line;
+        String line = in.readLine();
         String[] data = new String[4];//GET, endpoint, params, contenttype
-
-        boolean firstLine = true;
-        while ((line = in.readLine()) != null){
-            if (line.startsWith("Accept")) {
-                if (line.contains(",")) data[3] = line.split("\\:")[1].split(",")[0];
-                else data[3] = line.split("\\:")[1];
-                break;
-            }
-            if (firstLine){
-                // GET /movies?name=2e24 fdas
-                data[0] = line.split(" ")[0];
-                String aux = line.split(" ")[1];
-                if (aux.contains("\\?")){
-                    data[1] = aux.split("\\?")[0];
-                    data[2] = aux.split("\\?")[1];
-                }else {
-                    data[1] = aux;
-                    data[2] = null;
-                }
-                firstLine = false;
-            }
+        // GET /movies?name=2e24 fdas
+        data[0] = line.split(" ")[0];
+        String aux = line.split(" ")[1];
+        if (aux.contains("?")){
+            data[1] = aux.split("\\?")[0];
+            data[2] = aux.split("\\?")[1];
+        }else {
+            data[1] = aux;
+            data[2] = null;
         }
+
+        data[3] =  getLoader.getContentType(data[1]);
 
         return data;
     }
@@ -78,11 +93,14 @@ public class Spring {
      * Orquestador de carga de clases dentro de ComponentLoader
      */
 
-    private static void cargarClases() throws ClassNotFoundException {
+    private static void cargarClases() {
         List<String> fileNames = new ArrayList<>();
         Spring.getClassNames(new File("target/classes"), fileNames);
         for (String fileName : fileNames) {
-            ComponentLoader.load(fileName);
+            try {
+                getLoader.load(fileName);
+            }catch (ClassNotFoundException ignored){}
+
         }
     }
 

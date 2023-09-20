@@ -1,4 +1,4 @@
-package eci.arep;
+package eci.arep.services;
 
 import eci.arep.spring.anotaciones.Componente;
 import eci.arep.spring.anotaciones.GetMapping;
