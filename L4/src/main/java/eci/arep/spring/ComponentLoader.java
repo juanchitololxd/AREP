@@ -18,8 +18,6 @@ public class ComponentLoader {
 
     public byte[] ejecutar(String endpoint, Map<String, String> queryParams) throws Exception {
         Method method =services.get(endpoint);
-        System.out.println(endpoint);
-        System.out.println(method);
         Object[] params = getParams(method, queryParams);
         if (params.length == 0) params = null;
         return (byte[]) method.invoke(null, params);
@@ -28,7 +26,6 @@ public class ComponentLoader {
 
     /**
      * Recorre los parametros del metodo, y si tiene una anotación, la asigna en el arreglo
-     * @return
      */
     private static Object[] getParams(Method method, Map<String, String> params){
         Object[] rta = new Object[method.getParameters().length];
