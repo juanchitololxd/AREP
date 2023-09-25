@@ -7,6 +7,8 @@ Architecture is so basic. There are two services, whom are invoked by SparkWebSe
 
 ## Instalation
 
+**All commands you must execute inside *lab-docker* folder :)**
+
 You must to have a SDK and maven. Then you have to download this folder and run:
 
 ```cmd
